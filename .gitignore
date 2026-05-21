@@ -37,5 +37,8 @@ Thumbs.db
 # Documentation & Helper Scripts
 *.md
 !README.md
-*_helper.py
 *helper.py
+
+# Static frontend backup files
+frontend_static_backup/
+

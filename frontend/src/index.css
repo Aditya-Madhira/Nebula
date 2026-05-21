@@ -100,6 +100,7 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
   pointer-events: none;
   z-index: 1;
   animation: planetFloat 30s ease-in-out infinite;
+  will-change: transform;
 }
 .planet-surface {
   width: 100%; height: 100%;
@@ -156,6 +157,32 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
     inset -8px -8px 16px rgba(0,0,0,0.5),
     0 0 25px rgba(236,72,153,0.4);
 }
+.planet-gas-giant {
+  width: 180px; height: 180px;
+  top: 60%; left: -5%;
+  animation-duration: 40s;
+  animation-delay: -15s;
+}
+.planet-gas-giant .planet-surface {
+  background: radial-gradient(circle at 35% 30%,
+    #fcd34d 0%, #d97706 40%, #78350f 80%, #451a03 100%);
+  box-shadow:
+    inset -25px -25px 50px rgba(0,0,0,0.6),
+    0 0 50px rgba(217,119,6,0.3);
+}
+.planet-moon {
+  width: 30px; height: 30px;
+  top: 15%; left: 35%;
+  animation-duration: 18s;
+  animation-delay: -2s;
+}
+.planet-moon .planet-surface {
+  background: radial-gradient(circle at 35% 30%,
+    #e2e8f0 0%, #94a3b8 50%, #334155 100%);
+  box-shadow:
+    inset -6px -6px 12px rgba(0,0,0,0.6),
+    0 0 15px rgba(226,232,240,0.2);
+}
 @keyframes planetFloat {
   0%,100% { transform: translateY(0px) rotate(0deg); }
   33%      { transform: translateY(-18px) rotate(2deg); }
@@ -174,6 +201,7 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
   align-items: center;
   justify-content: space-between;
   padding: 0 48px;
+  gap: 20px;
   transition: background 0.4s var(--ease), backdrop-filter 0.4s;
 }
 .navbar.scrolled {
@@ -181,6 +209,60 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
   backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
 }
+
+/* Responsive Navbar overrides to eliminate layout overlaps */
+@media (max-width: 900px) {
+  .navbar {
+    padding: 0 24px;
+    gap: 12px;
+  }
+  .nav-links {
+    gap: 16px;
+  }
+  .status-badge {
+    display: none !important;
+  }
+}
+@media (max-width: 640px) {
+  .nav-logo {
+    font-size: 18px;
+  }
+  .nav-links {
+    gap: 10px;
+  }
+  .nav-links a {
+    font-size: 12.5px;
+  }
+  .nav-btn-ghost, .nav-btn-primary {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+  }
+}
+
+/* React Chat Widget overlay bindings */
+.chat-widget-container-react {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 30px;
+}
+.chat-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(4, 5, 10, 0.45);
+  backdrop-filter: blur(3px);
+  pointer-events: auto;
+  z-index: 1;
+}
+.chat-box {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
 .nav-logo {
   font-size: 22px;
   font-weight: 900;
@@ -200,10 +282,7 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
 }
 .nav-links {
   display: flex;
-  gap: 36px;
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  gap: 28px;
 }
 .nav-links a {
   font-size: 14px;
@@ -305,6 +384,7 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
   align-items: center;
   padding: 0 48px;
   overflow: hidden;
+  perspective: 1200px;
 }
 .hero-backdrop {
   position: absolute;
@@ -387,6 +467,7 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
   transform: translateY(-50%);
   z-index: 3;
   padding-top: 68px;
+  will-change: transform;
 }
 .hero-poster {
   width: 240px;
@@ -577,6 +658,9 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
   z-index: 2;
   padding: 0 48px 80px;
   margin-top: -60px;
+}
+.user-hero-banner:not(.hidden) + .main-content {
+  margin-top: 30px;
 }
 
 /* ── Row ── */
@@ -909,6 +993,56 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.rating-controls {
+  display: flex;
+  gap: 6px;
+  background: rgba(255,255,255,0.04);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(8px);
+}
+
+.btn-rating {
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+
+.btn-rating:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--text-main);
+}
+
+.btn-rating.active-like {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.btn-rating.active-dislike {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.btn-rating svg {
+  transition: transform 0.2s var(--ease-spring);
+}
+
+.btn-rating:active svg {
+  transform: scale(0.9);
 }
 
 /* ============================================================
@@ -1389,7 +1523,7 @@ button { font-family:inherit; cursor:pointer; border:none; background:none; }
 
 /* Chat Toggle FAB Button */
 .chat-fab {
-  display: flex;
+  display: none !important;
   align-items: center;
   gap: 10px;
   padding: 14px 24px;

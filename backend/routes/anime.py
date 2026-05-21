@@ -7,12 +7,30 @@ REST endpoints for local anime data and service health.
 import os
 import json
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
+from routes.auth import get_current_user
+from db import get_db_connection
 
 log    = logging.getLogger(__name__)
 router = APIRouter()
 
 ANIME_JSON_PATH = os.path.join(os.path.dirname(__file__), "..", "anime.json")
+
+
+class RatingRequest(BaseModel):
+    anime_id: int
+    rating:   int  # 1 for like, -1 for dislike, 0 to clear
+
+
+class FavoriteRequest(BaseModel):
+    anime_id:    int
+    anime_title: str
+
+
+class HistoryRequest(BaseModel):
+    anime_id:    int
+    anime_title: str
 
 
 @router.get("/api/anime")
@@ -36,6 +54,107 @@ async def get_anime():
         raise HTTPException(status_code=500, detail="Failed to fetch local anime data.")
 
 
+@router.post("/api/anime/favorites/add")
+async def add_favorite(payload: FavoriteRequest, user=Depends(get_current_user)):
+    """
+    Adds an anime to the user's favorites list.
+    """
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO favorites (user_id, anime_id, anime_title) VALUES (?, ?, ?)",
+            (user["sub"], payload.anime_id, payload.anime_title),
+        )
+        conn.commit()
+        return {"status": "success", "message": f"Added {payload.anime_title} to favorites."}
+    finally:
+        conn.close()
+
+
+@router.get("/api/anime/favorites/check/{anime_id}")
+async def check_favorite(anime_id: int, user=Depends(get_current_user)):
+    """
+    Checks if an anime is in the user's favorites list.
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM favorites WHERE user_id = ? AND anime_id = ?",
+            (user["sub"], anime_id),
+        ).fetchone()
+        return {"is_favorite": bool(row)}
+    finally:
+        conn.close()
+
+
+@router.post("/api/anime/history/add")
+async def add_history(payload: HistoryRequest, user=Depends(get_current_user)):
+    """
+    Adds an anime to the user's watch history.
+    """
+    conn = get_db_connection()
+    try:
+        conn.execute(
+            "INSERT INTO watch_history (user_id, anime_id, anime_title) VALUES (?, ?, ?)",
+            (user["sub"], payload.anime_id, payload.anime_title),
+        )
+        conn.commit()
+        return {"status": "success", "message": f"Added {payload.anime_title} to history."}
+    finally:
+        conn.close()
+
+
+@router.get("/api/anime/ratings/{anime_id}")
+async def get_user_rating(anime_id: int, user=Depends(get_current_user)):
+    """
+    Returns the current user's rating for a specific anime.
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT rating FROM user_ratings WHERE user_id = ? AND anime_id = ?",
+            (user["sub"], anime_id),
+        ).fetchone()
+        return {"rating": row["rating"] if row else 0}
+    finally:
+        conn.close()
+
+
+@router.post("/api/anime/rate")
+async def rate_anime(payload: RatingRequest, user=Depends(get_current_user)):
+    """
+    Sets or updates the current user's rating for an anime.
+    """
+    if payload.rating not in [1, -1, 0]:
+        raise HTTPException(status_code=400, detail="Invalid rating value.")
+
+    conn = get_db_connection()
+    try:
+        if payload.rating == 0:
+            conn.execute(
+                "DELETE FROM user_ratings WHERE user_id = ? AND anime_id = ?",
+                (user["sub"], payload.anime_id),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO user_ratings (user_id, anime_id, rating, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(user_id, anime_id) DO UPDATE SET
+                    rating = excluded.rating,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (user["sub"], payload.anime_id, payload.rating),
+            )
+        conn.commit()
+        return {"status": "success", "rating": payload.rating}
+    except Exception as e:
+        log.error("Failed to update rating: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to update rating.")
+    finally:
+        conn.close()
+
+
 @router.get("/api/health")
 async def health_check():
     """
@@ -47,4 +166,3 @@ async def health_check():
         "mode":           "local-dev",
         "dataset_loaded": dataset_exists,
     }
-

@@ -15,7 +15,7 @@ router = APIRouter()
 
 
 class ChatRequest(BaseModel):
-    message:  str
+    message: str
 
 
 @router.post("/api/chat")
@@ -27,9 +27,11 @@ async def chat(payload: ChatRequest, user=Depends(get_current_user)):
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
 
     try:
-        anime_agent = get_anime_agent()
-        user_id = int(user["sub"])
-        response = anime_agent.run(payload.message, context={"user_id": user_id})
+        user_id = str(user["sub"])
+        # get_anime_agent(user_id) returns a cached agent whose tools already
+        # have user_id baked in via closure — no injection tricks needed.
+        anime_agent = get_anime_agent(user_id)
+        response = anime_agent.run(payload.message, user_id=user_id, session_id=user_id)
         return {
             "reply":      response.content,
             "agent_name": anime_agent.name,
@@ -37,4 +39,3 @@ async def chat(payload: ChatRequest, user=Depends(get_current_user)):
     except Exception as e:
         log.error("Agno Agent error: %s", e)
         raise HTTPException(status_code=500, detail=f"AI Agent error: {str(e)}")
-
