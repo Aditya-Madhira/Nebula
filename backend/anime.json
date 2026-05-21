@@ -1,0 +1,210 @@
+[
+  {
+    "id": 1, "mal_id": 52991,
+    "title": "Frieren: Beyond Journey's End",
+    "genres": "Adventure, Drama, Fantasy",
+    "score": 9.3, "episodes": 28,
+    "synopsis": "An elven mage and her former party members successfully defeat the Demon King and bring peace to the land. As an elf with a near-immortal lifespan, Frieren goes on a journey to learn more about humans after her dear companions pass away.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1015/138025.jpg"
+  },
+  {
+    "id": 2, "mal_id": 5114,
+    "title": "Fullmetal Alchemist: Brotherhood",
+    "genres": "Action, Adventure, Drama, Fantasy",
+    "score": 9.1, "episodes": 64,
+    "synopsis": "Two brothers lose their mother and attempt a forbidden alchemical ritual to bring her back, losing their own body parts in the process. They embark on a quest to find the legendary Philosopher's Stone to restore their bodies.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1208/94745.jpg"
+  },
+  {
+    "id": 3, "mal_id": 9253,
+    "title": "Steins;Gate",
+    "genres": "Drama, Sci-Fi, Suspense",
+    "score": 9.0, "episodes": 24,
+    "synopsis": "A self-proclaimed mad scientist and his eccentric laboratory club accidentally discover a method of sending text messages to the past, altering their present and triggering a desperate race against time to prevent a dystopian future.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1935/127974.jpg"
+  },
+  {
+    "id": 4, "mal_id": 11061,
+    "title": "Hunter x Hunter (2011)",
+    "genres": "Action, Adventure, Fantasy",
+    "score": 9.0, "episodes": 148,
+    "synopsis": "Gon Freecss aspires to become a Hunter, an exceptional individual licensed to trace treasures, beasts, and individuals. He embarks on a journey to find his father, facing extreme challenges alongside his loyal friends.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1337/99013.jpg"
+  },
+  {
+    "id": 5, "mal_id": 19,
+    "title": "Monster",
+    "genres": "Drama, Mystery, Suspense, Psychological, Thriller",
+    "score": 8.9, "episodes": 74,
+    "synopsis": "Brilliant neurosurgeon Dr. Kenzou Tenma saves the life of a young boy over that of a prominent politician. Years later, Tenma discovers that the boy he saved has grown up to become a charismatic and ruthless serial killer.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/10/18740.jpg"
+  },
+  {
+    "id": 6, "mal_id": 16498,
+    "title": "Attack on Titan",
+    "genres": "Action, Drama, Suspense",
+    "score": 8.8, "episodes": 25,
+    "synopsis": "Humanity is forced to live inside three massive concentric walls to protect themselves from giant, man-eating humanoids called Titans. When a colossal Titan breaches the outermost wall, young Eren Yeager vows to eradicate every single Titan.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/10/47347.jpg"
+  },
+  {
+    "id": 7, "mal_id": 199,
+    "title": "Spirited Away",
+    "genres": "Adventure, Award Winning, Fantasy",
+    "score": 8.8, "episodes": 1,
+    "synopsis": "Ten-year-old Chihiro and her parents stumble upon an abandoned amusement park. After her parents are turned into pigs by a mysterious curse, Chihiro must work in a spiritual bathhouse to free them and find a way back home.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/6/79597.jpg"
+  },
+  {
+    "id": 8, "mal_id": 32281,
+    "title": "Your Name.",
+    "genres": "Drama, Romance, Supernatural",
+    "score": 8.8, "episodes": 1,
+    "synopsis": "Two high school teenagers, Mitsuha in the countryside and Taki in Tokyo, suddenly and inexplicably begin to swap bodies. As they learn to adapt, they attempt to meet in person, uncovering a profound secret.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/5/87048.jpg"
+  },
+  {
+    "id": 9, "mal_id": 1535,
+    "title": "Death Note",
+    "genres": "Drama, Suspense, Psychological, Thriller",
+    "score": 8.6, "episodes": 37,
+    "synopsis": "High school student Light Yagami discovers a supernatural notebook that grants him the power to kill anyone whose name and face he knows. He begins a global vigilante crusade to rid the world of criminals, pursued by the genius detective L.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/9/9453.jpg"
+  },
+  {
+    "id": 10, "mal_id": 30,
+    "title": "Neon Genesis Evangelion",
+    "genres": "Action, Drama, Sci-Fi, Psychological, Mecha",
+    "score": 8.3, "episodes": 26,
+    "synopsis": "In a futuristic world threatened by giant alien beings known as Angels, teenager Shinji Ikari is recruited by his estranged father to pilot a colossal bio-mechanical mecha called Evangelion to defend humanity.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/10/19083.jpg"
+  },
+  {
+    "id": 11, "mal_id": 1575,
+    "title": "Code Geass: Lelouch of the Rebellion",
+    "genres": "Action, Drama, Sci-Fi, Mecha",
+    "score": 8.7, "episodes": 25,
+    "synopsis": "Lelouch vi Britannia, a banished prince, obtains the power of Geass — the ability to command anyone to obey him. He uses this power to lead a rebellion against the Holy Britannian Empire under the masked identity of Zero.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/5/50331.jpg"
+  },
+  {
+    "id": 12, "mal_id": 2904,
+    "title": "Code Geass: Lelouch of the Rebellion R2",
+    "genres": "Action, Drama, Sci-Fi, Mecha",
+    "score": 8.7, "episodes": 25,
+    "synopsis": "The Black Knights have been defeated and Lelouch has had his memories wiped. Now living as a student, he must reclaim his identity as Zero and continue the fight to liberate Japan from Britannian rule.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1519/100633.jpg"
+  },
+  {
+    "id": 13, "mal_id": 22319,
+    "title": "Tokyo Ghoul",
+    "genres": "Action, Drama, Horror, Supernatural",
+    "score": 7.8, "episodes": 12,
+    "synopsis": "Ken Kaneki, a college student, barely survives a deadly encounter with a ghoul — a creature that feeds on human flesh. He is transformed into a half-ghoul and must navigate the dark underworld of Tokyo's ghoul society.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/5/64449.jpg"
+  },
+  {
+    "id": 14, "mal_id": 20,
+    "title": "Naruto",
+    "genres": "Action, Adventure, Fantasy",
+    "score": 7.9, "episodes": 220,
+    "synopsis": "Naruto Uzumaki, a young ninja with a powerful demon fox sealed inside him, dreams of becoming the strongest ninja and leader of his village. His journey is one of friendship, rivalry, and self-discovery.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/13/17405.jpg"
+  },
+  {
+    "id": 15, "mal_id": 1735,
+    "title": "Naruto: Shippuden",
+    "genres": "Action, Adventure, Fantasy",
+    "score": 8.0, "episodes": 500,
+    "synopsis": "Two and a half years after his training with Jiraiya, Naruto returns to Konoha. He and his friends must now face the Akatsuki, a criminal organisation seeking to capture the tailed beasts for their sinister plans.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1565/111305.jpg"
+  },
+  {
+    "id": 16, "mal_id": 269,
+    "title": "Bleach",
+    "genres": "Action, Adventure, Fantasy",
+    "score": 7.9, "episodes": 366,
+    "synopsis": "Ichigo Kurosaki, a teenager with the ability to see ghosts, gains the powers of a Soul Reaper and must protect the living world from evil spirits called Hollows while guiding souls to the afterlife.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/3/40451.jpg"
+  },
+  {
+    "id": 21, "mal_id": 33486,
+    "title": "Sword Art Online",
+    "genres": "Action, Adventure, Fantasy, Romance",
+    "score": 7.2, "episodes": 25,
+    "synopsis": "Ten thousand players are trapped inside a virtual reality MMORPG where death in the game means death in real life. Kirito, a skilled solo player, must fight his way to the top floor to clear the game.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/11/39717.jpg"
+  },
+  {
+    "id": 22, "mal_id": 457,
+    "title": "Dragon Ball Z",
+    "genres": "Action, Adventure, Fantasy",
+    "score": 8.1, "episodes": 291,
+    "synopsis": "Goku and his friends defend Earth against increasingly powerful villains including Saiyans, Frieza, androids, and magical beings. Each saga pushes the warriors to new limits of power and sacrifice.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1277/142022.jpg"
+  },
+  {
+    "id": 23, "mal_id": 6547,
+    "title": "Angel Beats!",
+    "genres": "Action, Comedy, Drama, Fantasy",
+    "score": 8.1, "episodes": 13,
+    "synopsis": "In a mysterious afterlife school, a group of students wage war against a girl they believe is God's angel. As they fight for their right to exist, they slowly uncover the truth about their deaths and find peace.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/10/22061.jpg"
+  },
+  {
+    "id": 24, "mal_id": 23273,
+    "title": "Sword Art Online II",
+    "genres": "Action, Adventure, Fantasy, Romance",
+    "score": 7.2, "episodes": 24,
+    "synopsis": "Kirito is asked to investigate a series of mysterious deaths in a new VR game called Gun Gale Online. He dives in as a female avatar and teams up with a skilled sniper named Sinon to uncover the truth.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1223/121999.jpg"
+  },
+  {
+    "id": 25, "mal_id": 44511,
+    "title": "Chainsaw Man",
+    "genres": "Action, Drama, Horror",
+    "score": 8.5, "episodes": 12,
+    "synopsis": "Denji, a young devil hunter drowning in debt, merges with his devil dog Pochita and becomes Chainsaw Man — a hybrid with chainsaws for arms. He joins a government agency hunting devils in exchange for a normal life.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1806/126216.jpg"
+  },
+  {
+    "id": 26, "mal_id": 37779,
+    "title": "The Promised Neverland",
+    "genres": "Mystery, Sci-Fi, Suspense, Horror",
+    "score": 8.4, "episodes": 12,
+    "synopsis": "Emma, Norman, and Ray are the brightest kids at an idyllic orphanage. When they discover the dark truth about their home — that they are being raised as food for demons — they plan a daring escape.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1830/108759.jpg"
+  },
+  {
+    "id": 27, "mal_id": 28977,
+    "title": "Overlord",
+    "genres": "Action, Adventure, Fantasy",
+    "score": 7.9, "episodes": 13,
+    "synopsis": "When a popular MMORPG shuts down, one player finds himself trapped inside as his powerful undead character Ainz Ooal Gown. He decides to conquer this new world while searching for other players.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/7/88019.jpg"
+  },
+  {
+    "id": 28, "mal_id": 14741,
+    "title": "Sword Art Online: Extra Edition",
+    "genres": "Action, Adventure, Fantasy",
+    "score": 6.6, "episodes": 1,
+    "synopsis": "A recap special that revisits the events of the Aincrad and Fairy Dance arcs, while adding new scenes of Kirito and friends at a swimming pool as Yui tries to learn how to swim.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1223/121999.jpg"
+  },
+  {
+    "id": 29, "mal_id": 35760,
+    "title": "Made in Abyss",
+    "genres": "Adventure, Drama, Fantasy, Mystery",
+    "score": 8.7, "episodes": 13,
+    "synopsis": "Riko, a young orphan, dreams of exploring the Abyss — a vast chasm filled with relics and creatures. When she meets a robot boy named Reg, they descend together into the depths to find her missing mother.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/6/86733.jpg"
+  },
+  {
+    "id": 30, "mal_id": 38524,
+    "title": "Vinland Saga",
+    "genres": "Action, Adventure, Drama",
+    "score": 8.7, "episodes": 24,
+    "synopsis": "Young Thorfinn grows up hearing tales of the legendary land of Vinland. After his father is killed by a mercenary band, he joins them seeking revenge, becoming a skilled warrior consumed by hatred.",
+    "image_url": "https://cdn.myanimelist.net/images/anime/1500/103005.jpg"
+  }
+]
