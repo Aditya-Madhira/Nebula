@@ -1,18 +1,58 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, Play, Info, ChevronLeft, ChevronRight, Search, Bot } from 'lucide-react';
+import { Sparkles, Play, Info, ChevronLeft, ChevronRight, Search, Bot, SearchX, Volume2, VolumeX, Menu, X } from 'lucide-react';
 import Starfield from './components/Starfield';
 import ChatWidget from './components/ChatWidget';
 import AuthOverlay from './components/AuthOverlay';
 import AnimeDetailModal from './components/AnimeDetailModal';
+import SplashScreen from './components/SplashScreen';
+const logoImg = "https://nebulaanimeblob.blob.core.windows.net/imgandvids/logo.png";
+import { audioSystem } from './utils/audio';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// High-performance 3D perspective tilt hover tracking
+const handleCardMouseMove = (e) => {
+  const card = e.currentTarget;
+  const rect = card.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const xc = rect.width / 2;
+  const yc = rect.height / 2;
+  const dx = x - xc;
+  const dy = y - yc;
+  
+  // Dynamic 3D rotation angles (clamped to max 12deg)
+  const rx = -(dy / yc) * 12;
+  const ry = (dx / xc) * 12;
+
+  card.style.setProperty('--rx', `${rx}deg`);
+  card.style.setProperty('--ry', `${ry}deg`);
+  card.style.setProperty('--mx', `${(x / rect.width) * 100}%`);
+  card.style.setProperty('--my', `${(y / rect.height) * 100}%`);
+};
+
+const handleCardMouseEnter = () => {
+  audioSystem.playTick();
+};
+
+const handleCardMouseLeave = (e) => {
+  const card = e.currentTarget;
+  card.style.setProperty('--rx', '0deg');
+  card.style.setProperty('--ry', '0deg');
+  card.style.setProperty('--mx', '50%');
+  card.style.setProperty('--my', '50%');
+};
+
 
 // API Configurations
+// In production the React bundle is served by FastAPI itself (same origin),
+// so we use relative URLs (''). Only local dev needs an explicit host.
 const BACKEND_BASE_URL = (
   window.location.hostname === '127.0.0.1' ||
   window.location.hostname === 'localhost' ||
   window.location.hostname === ''
 )
   ? 'http://127.0.0.1:8000'
-  : 'https://animerecdevbackend.lemonflower-23acd856.southindia.azurecontainerapps.io';
+  : '';   // ← same-origin: FastAPI serves both the frontend AND the API
 
 const API_URL = `${BACKEND_BASE_URL}/api/anime`;
 
@@ -49,19 +89,106 @@ const ANIME_FACTS = [
 ];
 
 export default function App() {
+  // Splash screen — always show on startup as requested
+  const [splashDone, setSplashDone] = useState(false);
+  
+  const handleSplashDone = () => {
+    setSplashDone(true);
+  };
+
+  // Auth Loading Stall State
+  const [authDataLoading, setAuthDataLoading] = useState(false);
+
   // App States
   const [animeList, setAnimeList] = useState([]);
   const [activeHero, setActiveHero] = useState(null);
+  const [heroIndex, setHeroIndex] = useState(0);
   const [apiStatus, setApiStatus] = useState('checking'); // 'checking', 'online', 'demo'
   const [loading, setLoading] = useState(true);
   const [errorVisible, setErrorVisible] = useState(false);
   const [randomFact, setRandomFact] = useState('');
+
+  // Immersive Fluidity & Gamification States
+  const [sfxMuted, setSfxMuted] = useState(() => audioSystem.getMuteState());
+  const [isWarping, setIsWarping] = useState(false);
+
+  const toggleSfx = () => {
+    const nextMuted = !sfxMuted;
+    audioSystem.setMuted(nextMuted);
+    setSfxMuted(nextMuted);
+  };
+
+  const handleNebulaWarp = () => {
+    if (isWarping) return;
+    setIsWarping(true);
+    
+    // Play pitch-rising warp engine synthesis SFX
+    audioSystem.playWarp();
+    
+    // Dispatch event to accelerate canvas Starfield stars radially
+    window.dispatchEvent(new Event('nebula-warp-start'));
+    
+    // Shake the main application layer for rich tactile feedback
+    document.body.classList.add('warp-shake-active');
+
+    setTimeout(() => {
+      // Pick a random anime from available selection or mock fallbacks
+      const list = filteredAnime.length > 0 ? filteredAnime : (animeList.length > 0 ? animeList : MOCK_DATA);
+      const randomAnime = list[Math.floor(Math.random() * list.length)];
+
+      // Decelerate stars and stop console screenshake
+      window.dispatchEvent(new Event('nebula-warp-end'));
+      document.body.classList.remove('warp-shake-active');
+      setIsWarping(false);
+
+      // Play celestial success chime
+      audioSystem.playSuccess();
+
+      // Open detail modal for the randomly selected recommendation
+      if (randomAnime) {
+        handleOpenDetailModal(randomAnime);
+      }
+    }, 1400); // 1.4s duration matching procedural warp SFX length
+  };
+
+  const handleNextHero = () => {
+    const list = animeList.length > 0 ? animeList : MOCK_DATA;
+    const listToUse = list.slice(0, 10);
+    if (listToUse.length === 0) return;
+    setHeroIndex((prev) => {
+      const nextIdx = (prev + 1) % listToUse.length;
+      setActiveHero(listToUse[nextIdx]);
+      return nextIdx;
+    });
+  };
+
+  const handlePrevHero = () => {
+    const list = animeList.length > 0 ? animeList : MOCK_DATA;
+    const listToUse = list.slice(0, 10);
+    if (listToUse.length === 0) return;
+    setHeroIndex((prev) => {
+      const nextIdx = (prev - 1 + listToUse.length) % listToUse.length;
+      setActiveHero(listToUse[nextIdx]);
+      return nextIdx;
+    });
+  };
 
   // Modals Toggles
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [selectedModalAnime, setSelectedModalAnime] = useState(null);
   const [authOverlayOpen, setAuthOverlayOpen] = useState(false);
   const [authTabMode, setAuthTabMode] = useState('login');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Auto-rotate hero slideshow
+  useEffect(() => {
+    if (detailModalOpen || isWarping || loading) return;
+    const interval = setInterval(() => {
+      handleNextHero();
+    }, 8000); // 8 seconds per slide
+
+    return () => clearInterval(interval);
+  }, [animeList, detailModalOpen, isWarping, loading]);
 
   // Chat States
   const [chatOpen, setChatOpen] = useState(false);
@@ -69,19 +196,68 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState([
     {
       role: 'ai',
-      message: 'Hello! I am your Nebula AI assistant. 🌌 Ask me anything about anime, ratings, genres, or for personalized recommendations!',
+      message: 'Hello, Sir. I am **Nebulous**, your dedicated AI companion. 🌌 I am highly specialized in anime curation and database search, but I am also quite happy to assist with general conversation. How may I be of service to you today?',
       timestamp: new Date()
     }
   ]);
 
+  // Mobile check
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobileRegex = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+      const isMobileDevice = mobileRegex.test(navigator.userAgent) || window.innerWidth < 1024;
+      setIsMobile(isMobileDevice);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
   // Auth States
   const [user, setUser] = useState(null);
   const [authToken, setAuthToken] = useState('');
+  const [favoritesCount, setFavoritesCount] = useState(0);
+  const [favoritesList, setFavoritesList] = useState([]);
+  const [userRatings, setUserRatings] = useState({});
+  const [watchHistory, setWatchHistory] = useState([]);
+
+  // Navigation & Filtering States
+  const [currentView, setCurrentView] = useState('home'); // 'home' | 'explorer' | 'mylist'
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState('All');
 
   // Scrolling Parallax States
-  const [scrollY, setScrollY] = useState(0);
   const [navbarScrolled, setNavbarScrolled] = useState(false);
   const trackRef = useRef(null);
+
+  // Dynamic debounced on-the-fly Jikan API search fallback
+  useEffect(() => {
+    if (!searchQuery || searchQuery.trim().length < 3) return;
+
+    const delayDebounce = setTimeout(async () => {
+      const localMatches = animeList.filter(a => a.title.toLowerCase().includes(searchQuery.toLowerCase()));
+      if (localMatches.length < 3) {
+        try {
+          const res = await fetch(`${BACKEND_BASE_URL}/api/anime/search?q=${encodeURIComponent(searchQuery)}`);
+          if (res.ok) {
+            const newAnimes = await res.json();
+            if (newAnimes.length > 0) {
+              setAnimeList(prev => {
+                const existingIds = new Set(prev.map(a => a.mal_id));
+                const filteredNew = newAnimes.filter(a => !existingIds.has(a.mal_id));
+                return [...prev, ...filteredNew];
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Dynamic search sync failed:", e);
+        }
+      }
+    }, 600); // 600ms debounce
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery, animeList]);
 
   // 1. Initial configuration load (Session checks & Caches)
   useEffect(() => {
@@ -90,8 +266,34 @@ export default function App() {
       const storedToken = localStorage.getItem('nebula_token');
       const storedUser = localStorage.getItem('nebula_user');
       if (storedToken && storedUser) {
+        setAuthDataLoading(true);
         setAuthToken(storedToken);
         setUser(JSON.parse(storedUser));
+        
+        // Await personal user data to prevent UI pop-in
+        Promise.allSettled([
+          fetchFavoritesCount(storedToken),
+          fetchFavoritesList(storedToken),
+          fetchWatchHistory(storedToken)
+        ]).finally(() => {
+          setAuthDataLoading(false);
+        });
+
+        // Check if this is a fresh browser session (e.g. browser was closed and reopened)
+        if (!sessionStorage.getItem('nebula_session_active')) {
+          fetch(`${BACKEND_BASE_URL}/api/chat/clear`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${storedToken}` }
+          }).catch(console.error);
+          
+          setChatHistory([{
+            role: 'ai',
+            message: 'Hello, Sir. I am **Nebulous**, your dedicated AI companion. 🌌 I am highly specialized in anime curation and database search, but I am also quite happy to assist with general conversation. How may I be of service to you today?',
+            timestamp: new Date()
+          }]);
+          
+          sessionStorage.setItem('nebula_session_active', 'true');
+        }
       }
     } catch (e) {
       console.error('Session restore error:', e);
@@ -120,7 +322,7 @@ export default function App() {
       if (!ticking) {
         window.requestAnimationFrame(() => {
           const currentScroll = window.scrollY;
-          setScrollY(currentScroll);
+          document.documentElement.style.setProperty('--scroll-y', currentScroll);
           setNavbarScrolled(currentScroll > 20);
           ticking = false;
         });
@@ -247,18 +449,96 @@ export default function App() {
   };
 
   // 5. Auth Action Handler
+  const fetchFavoritesCount = async (token) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/anime/favorites/count`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFavoritesCount(data.count ?? 0);
+      }
+    } catch {
+      // silently ignore — badge just won't update
+    }
+  };
+
+  const fetchFavoritesList = async (token) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/anime/favorites/list`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const enriched = await enrichImagesFromJikan(data);
+        setFavoritesList(enriched);
+      }
+    } catch {
+      // silently ignore
+    }
+  };
+
+  useEffect(() => {
+    const handleFavUpdate = () => {
+      if (authToken) {
+        fetchFavoritesCount(authToken);
+        fetchFavoritesList(authToken);
+      }
+    };
+    window.addEventListener('favorites-updated', handleFavUpdate);
+    return () => window.removeEventListener('favorites-updated', handleFavUpdate);
+  }, [authToken]);
+
+  const fetchWatchHistory = async (token) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${BACKEND_BASE_URL}/api/anime/history`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const enriched = await enrichImagesFromJikan(data);
+        setWatchHistory(enriched);
+      }
+    } catch {
+      // silently ignore
+    }
+  };
+
   const handleAuthSuccess = (userData, token) => {
     setUser(userData);
     setAuthToken(token);
     localStorage.setItem('nebula_token', token);
     localStorage.setItem('nebula_user', JSON.stringify(userData));
+    fetchFavoritesCount(token);
+    fetchFavoritesList(token);
+    fetchWatchHistory(token);
   };
 
   const handleLogout = () => {
+    if (authToken) {
+      fetch(`${BACKEND_BASE_URL}/api/chat/clear`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` }
+      }).catch(console.error);
+    }
+    
+    setChatHistory([{
+      role: 'ai',
+      message: 'Hello, Sir. I am **Nebulous**, your dedicated AI companion. 🌌 I am highly specialized in anime curation and database search, but I am also quite happy to assist with general conversation. How may I be of service to you today?',
+      timestamp: new Date()
+    }]);
+
     setUser(null);
     setAuthToken('');
+    setFavoritesCount(0);
+    setFavoritesList([]);
+    setWatchHistory([]);
     localStorage.removeItem('nebula_token');
     localStorage.removeItem('nebula_user');
+    sessionStorage.removeItem('nebula_session_active');
   };
 
   const showAuthModal = (tab = 'login') => {
@@ -276,7 +556,7 @@ export default function App() {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s timeout (generous for local Ollama)
 
       const headers = {
         'Content-Type': 'application/json',
@@ -301,9 +581,17 @@ export default function App() {
       const aiMsg = {
         role: 'ai',
         message: data.reply || 'Sorry, I did not receive a proper response from the assistant.',
+        metrics: data.metrics || null,
         timestamp: new Date(),
       };
       setChatHistory((prev) => [...prev, aiMsg]);
+
+      // Automatically refresh UI lists in case the AI modified the database
+      if (authToken) {
+        fetchFavoritesCount(authToken);
+        fetchFavoritesList(authToken);
+        fetchWatchHistory(authToken);
+      }
     } catch (err) {
       setIsTyping(false);
       console.error('Chat AI query error:', err);
@@ -334,10 +622,14 @@ export default function App() {
   };
 
   // 8. Horizontal scroller navigation
-  const handleScrollTrack = (direction) => {
-    if (trackRef.current) {
-      const offset = direction === 'left' ? -460 : 460;
-      trackRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+  const handleScrollTrack = (e, direction) => {
+    const wrap = e.currentTarget.closest('.scroller-wrap');
+    if (wrap) {
+      const track = wrap.querySelector('.anime-track');
+      if (track) {
+        const offset = direction === 'left' ? -460 : 460;
+        track.scrollBy({ left: offset, behavior: 'smooth' });
+      }
     }
   };
 
@@ -351,8 +643,6 @@ export default function App() {
   ];
 
   // Upright Hero Poster scroll calculations (rotation REMOVED, straight only)
-  const heroPosterTranslationY = scrollY * 0.4;
-  const heroPosterScale = Math.max(0.8, 1 - scrollY * 0.0003);
 
   // Content render helpers
   const renderingBadgeText = () => {
@@ -361,8 +651,86 @@ export default function App() {
     return '● Demo Mode';
   };
 
+  // 9. Extract unique genres dynamically from the anime list
+  const allGenres = ['All'];
+  animeList.forEach((anime) => {
+    if (anime.genres) {
+      anime.genres.split(',').forEach((g) => {
+        const trimmed = g.trim();
+        if (trimmed && !allGenres.includes(trimmed)) {
+          allGenres.push(trimmed);
+        }
+      });
+    }
+  });
+  // Sort genres alphabetically, but keep 'All' at the beginning
+  allGenres.sort((a, b) => {
+    if (a === 'All') return -1;
+    if (b === 'All') return 1;
+    return a.localeCompare(b);
+  });
+
+  // 10. Filter anime by selected genre and search query
+  const filteredAnime = animeList.filter((anime) => {
+    const matchesSearch = anime.title.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesGenre =
+      selectedGenre === 'All' ||
+      (anime.genres &&
+        anime.genres
+          .split(',')
+          .map((g) => g.trim())
+          .includes(selectedGenre));
+    return matchesSearch && matchesGenre;
+  });
+
+  // 11. Seed-based shuffle for consistent random rows without re-rendering jumps
+  const shuffleArray = (array, seed) => {
+    let m = array.length, t, i;
+    const result = [...array];
+    let s = seed;
+    const random = () => {
+      const x = Math.sin(s++) * 10000;
+      return x - Math.floor(x);
+    };
+    while (m) {
+      i = Math.floor(random() * m--);
+      t = result[m];
+      result[m] = result[i];
+      result[i] = t;
+    }
+    return result;
+  };
+
+  const cosmicRows = [
+    { title: 'Trending in the Nebula', data: animeList },
+    { title: 'Cosmic Classics', data: shuffleArray(animeList, 1) },
+    { title: 'New Stars Rising', data: shuffleArray(animeList, 2) },
+    { title: 'Hidden in the Void', data: shuffleArray(animeList, 3) },
+    { title: 'Popular Across the Galaxy', data: shuffleArray(animeList, 4) },
+  ];
+
+  if (isMobile) {
+    return (
+      <div className="mobile-blocker-overlay">
+        <Starfield />
+        <div className="mobile-blocker-content">
+          <div className="mobile-blocker-icon">🌌</div>
+          <h1 className="mobile-blocker-title">Desktop Experience Only</h1>
+          <p className="mobile-blocker-text">
+            Nebula Anime is optimized exclusively for desktop screens to preserve its high-fidelity 3D effects, immersive starfields, and cinematic animations.
+          </p>
+          <p className="mobile-blocker-sub">
+            Please open this web application on a desktop computer or laptop.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
+      {/* ── CINEMATIC SPLASH SCREEN (once per session) ── */}
+      {!splashDone && <SplashScreen onDone={handleSplashDone} isStalled={authDataLoading} />}
       {/* ── Starfield Canvas ── */}
       <Starfield />
 
@@ -377,7 +745,7 @@ export default function App() {
           key={idx}
           className="planet-parallax-wrap"
           style={{
-            transform: `translateY(${scrollY * planet.speed}px)`,
+            transform: `translateY(calc(var(--scroll-y, 0) * 1px * ${planet.speed}))`,
             position: 'fixed',
             inset: 0,
             pointerEvents: 'none',
@@ -392,54 +760,182 @@ export default function App() {
         </div>
       ))}
 
+      {/* ── COLLAPSIBLE SIDEBAR DRAWER ── */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            {/* Backdrop Blur Overlay */}
+            <motion.div
+              className="sidebar-overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+            />
+
+            {/* Sidebar Slide Panel */}
+            <motion.aside
+              className="sidebar-panel"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 190 }}
+            >
+              <div className="sidebar-header">
+                <div className="sidebar-logo">
+                  <img src={logoImg} alt="Nebula Anime" className="sidebar-logo-img" />
+                  <span className="sidebar-logo-text">NEBULA</span>
+                </div>
+                <button className="sidebar-close-btn" onClick={() => setSidebarOpen(false)}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* User Profile Info inside sidebar */}
+              {user && (
+                <div className="sidebar-profile">
+                  <div className="sidebar-avatar">
+                    {user.username.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div className="sidebar-profile-info">
+                    <p className="sidebar-username">{user.username}</p>
+                    <p className="sidebar-email">{user.email || 'Cosmic Explorer'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation Links inside sidebar */}
+              <nav className="sidebar-nav">
+                <p className="sidebar-section-title">Navigation</p>
+                <ul className="sidebar-links">
+                  <li>
+                    <a
+                      href="#"
+                      className={currentView === 'home' ? 'active' : ''}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentView('home');
+                        setSidebarOpen(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      Home
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#"
+                      className={currentView === 'explorer' ? 'active' : ''}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurrentView('explorer');
+                        setSidebarOpen(false);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    >
+                      Anime Explorer
+                    </a>
+                  </li>
+                  {user && (
+                    <li>
+                      <a
+                        href="#"
+                        className={currentView === 'mylist' ? 'active' : ''}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentView('mylist');
+                          setSidebarOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                      >
+                        My Anime List
+                        {favoritesCount > 0 && (
+                          <span className="mylist-badge">{favoritesCount}</span>
+                        )}
+                      </a>
+                    </li>
+                  )}
+                </ul>
+              </nav>
+
+              {/* Auth actions inside sidebar */}
+              <div className="sidebar-footer">
+                {!user ? (
+                  <div className="sidebar-auth-guest">
+                    <button className="sidebar-btn-login" onClick={() => { setSidebarOpen(false); showAuthModal('login'); }}>Log In</button>
+                    <button className="sidebar-btn-signup" onClick={() => { setSidebarOpen(false); showAuthModal('signup'); }}>Sign Up</button>
+                  </div>
+                ) : (
+                  <button className="sidebar-btn-logout" onClick={() => { setSidebarOpen(false); handleLogout(); }}>
+                    Log Out
+                  </button>
+                )}
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* ── NAVBAR ── */}
       <nav className={`navbar ${navbarScrolled ? 'scrolled' : ''}`} id="navbar">
-        <div className="nav-logo">
-          <span className="logo-nebula">NEBULA</span>
-          <span className="logo-anime">ANIME</span>
+        <div className="nav-left-section">
+          <button 
+            className="nav-sidebar-toggle" 
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open navigation menu"
+            onMouseEnter={() => audioSystem.playTick()}
+          >
+            <Menu size={22} />
+          </button>
+          <div 
+            className="nav-logo" 
+            onClick={() => {
+              setCurrentView('home');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          >
+            <img src={logoImg} alt="Nebula Anime" className="nav-logo-img" />
+          </div>
         </div>
-        <ul className="nav-links">
-          <li>
-            <a href="#" className="active">Home</a>
-          </li>
-          <li>
-            <a href="#anime-section" onClick={(e) => {
-              e.preventDefault();
-              document.getElementById('anime-section')?.scrollIntoView({ behavior: 'smooth' });
-            }}>Anime</a>
-          </li>
-          <li>
-            <a href="#anime-section" onClick={(e) => {
-              e.preventDefault();
-              if (!user) {
-                showAuthModal('login');
-              } else {
-                document.getElementById('anime-section')?.scrollIntoView({ behavior: 'smooth' });
+
+        {/* Global Miruro-style centered search bar */}
+        <div className="nav-search-global">
+          <Search size={16} className="nav-search-global-icon" />
+          <input
+            type="text"
+            placeholder="Search anime by title..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              if (currentView !== 'explorer') {
+                setCurrentView('explorer');
               }
-            }}>My List</a>
-          </li>
-        </ul>
+            }}
+            className="nav-search-global-input"
+          />
+        </div>
+
         <div className="nav-right">
-          <span className={`status-badge ${apiStatus === 'checking' ? 'checking' : apiStatus === 'online' ? 'online' : 'offline'}`}>
-            {renderingBadgeText()}
-          </span>
+          {/* Quick Hyperdrive Warp Button */}
+          <button
+            className="nav-warp-btn"
+            onClick={handleNebulaWarp}
+            title="Hyperdrive Surprise Randomizer"
+            disabled={isWarping}
+            onMouseEnter={() => audioSystem.playTick()}
+          >
+            <Sparkles size={16} className="warp-sparkle" />
+            <span>Warp</span>
+          </button>
 
-          {/* Logged-out state */}
-          {!user ? (
-            <div className="nav-auth-guest">
-              <button className="nav-btn-ghost" onClick={() => showAuthModal('login')}>Log In</button>
-              <button className="nav-btn-primary" onClick={() => showAuthModal('signup')}>Sign Up</button>
-            </div>
-          ) : (
-            /* Logged-in state */
-            <div className="nav-auth-user">
-              <span className="nav-greeting">Hi, {user.username}</span>
-              <button className="nav-btn-ghost" onClick={handleLogout}>Log Out</button>
-            </div>
-          )}
-
-          <button className="nav-search-btn" aria-label="Search">
-            <Search size={18} />
+          {/* Procedural Audio SFX Toggle */}
+          <button 
+            className={`nav-audio-btn ${sfxMuted ? 'muted' : 'active'}`} 
+            onClick={toggleSfx}
+            title={sfxMuted ? 'Unmute Space SFX' : 'Mute Space SFX'}
+            onMouseEnter={() => audioSystem.playTick()}
+          >
+            {sfxMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
         </div>
       </nav>
@@ -477,165 +973,417 @@ export default function App() {
         </div>
       ) : (
         /* ── MAIN CONTENT LAYER ── */
-        <>
-          {/* ── HERO ── */}
-          {activeHero && (
-            <section className="hero" id="hero">
-              {/* Static background backdrop prevents scaling repaints */}
-              <div
-                className="hero-backdrop"
-                style={{
-                  backgroundImage: `url(${activeHero.image_url})`,
-                  willChange: 'auto',
-                }}
-              />
-              <div className="hero-vignette" />
+        <AnimatePresence mode="wait">
+          {currentView === 'home' ? (
+            <motion.div
+              key="home-view"
+              initial={{ opacity: 0, x: -35, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 35, scale: 0.98 }}
+              transition={{ duration: 0.45, ease: [0.34, 1.3, 0.64, 1] }}
+            >
+              {/* ── HERO ── */}
+              {activeHero && (
+                <section className="hero" id="hero">
+                  {/* Static background backdrop prevents scaling repaints */}
+                  <div
+                    className="hero-backdrop"
+                    style={{
+                      backgroundImage: `url(${activeHero.image_url})`,
+                      willChange: 'auto',
+                    }}
+                  />
+                  <div className="hero-vignette" />
 
-              <div
-                className="hero-content"
-                style={{
-                  transform: `translateY(${scrollY * 0.2}px)`,
-                  opacity: Math.max(0, 1 - scrollY / 400),
-                  willChange: 'transform, opacity',
-                }}
-              >
-                <p className="hero-eyebrow">#1 IN RECOMMENDATIONS TODAY</p>
-                <h1 className="hero-title">{activeHero.title}</h1>
-                <div className="hero-meta">
-                  <span className="meta-score">⭐ {activeHero.score}/10</span>
-                  <span className="meta-dot"></span>
-                  <span className="meta-ep">{activeHero.episodes} Episodes</span>
-                  <span className="meta-dot"></span>
-                  <span className="meta-genre">{activeHero.genres}</span>
-                </div>
-                <p className="hero-synopsis">{activeHero.synopsis}</p>
-                <div className="hero-actions">
-                  <button className="btn-primary" onClick={() => setChatOpen(true)}>
-                    <Bot size={16} />
-                    Ask Agent
-                  </button>
-                  <button className="btn-secondary" onClick={() => handleOpenDetailModal(activeHero)}>
-                    <Info size={16} />
-                    More Info
-                  </button>
-                </div>
-              </div>
+                  {/* Hero Slideshow Navigation Controls (Miruro inspired) */}
+                  <div className="hero-carousel-controls">
+                    <button className="hero-carousel-arrow" onClick={handlePrevHero} aria-label="Previous Slide">
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span className="hero-carousel-index">
+                      {heroIndex + 1} / {Math.min(10, animeList.length > 0 ? animeList.length : MOCK_DATA.length)}
+                    </span>
+                    <button className="hero-carousel-arrow" onClick={handleNextHero} aria-label="Next Slide">
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
 
-              {/* Straight, upright Frieren poster container (tilt removed) */}
-              <div
-                className="hero-poster-wrap"
-                style={{
-                  transform: `translateY(calc(-50% + ${heroPosterTranslationY}px)) scale(${heroPosterScale})`,
-                  willChange: 'transform',
-                }}
-              >
-                <img
-                  id="hero-poster"
-                  src={activeHero.image_url}
-                  alt={activeHero.title}
-                  className="hero-poster"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = `https://placehold.co/240x340/0b0d17/7c3aed?text=${encodeURIComponent(
-                      activeHero.title.slice(0, 12)
-                    )}`;
-                  }}
-                />
-                <div className="hero-poster-glow" />
-              </div>
-            </section>
-          )}
+                  <div
+                    className="hero-content"
+                    style={{
+                      transform: `translateY(calc(var(--scroll-y, 0) * 0.2px))`,
+                      opacity: `max(0, calc(1 - (var(--scroll-y, 0) / 400)))`,
+                      willChange: 'transform, opacity',
+                    }}
+                  >
+                    <p className="hero-eyebrow">#1 IN RECOMMENDATIONS TODAY</p>
+                    <h1 className="hero-title">{activeHero.title}</h1>
+                    <div className="hero-meta">
+                      <span className="meta-score">⭐ {Number(activeHero.score).toFixed(1)}/10</span>
+                      <span className="meta-dot"></span>
+                      <span className="meta-ep">{activeHero.episodes} Episodes</span>
+                      <span className="meta-dot"></span>
+                      <span className="meta-genre">{activeHero.genres}</span>
+                    </div>
+                    <p className="hero-synopsis">{activeHero.synopsis}</p>
+                    <div className="hero-actions">
+                      <button className="btn-primary" onClick={() => setChatOpen(true)}>
+                        <Bot size={16} />
+                        Ask Agent
+                      </button>
+                      <button className="btn-primary btn-warp" onClick={handleNebulaWarp} disabled={isWarping}>
+                        <Sparkles size={16} className="warp-sparkle" />
+                        Nebula Warp
+                      </button>
+                      <button className="btn-secondary" onClick={() => handleOpenDetailModal(activeHero)}>
+                        <Info size={16} />
+                        More Info
+                      </button>
+                    </div>
+                  </div>
 
-          {/* ── USER GREETING BANNER ── */}
-          {user && (
-            <div className="user-hero-banner" id="user-hero-banner">
-              <div className="user-hero-inner">
-                <div className="user-hero-avatar">
-                  {user.username.charAt(0).toUpperCase()}
-                </div>
-                <div className="user-hero-text">
-                  <p className="user-hero-greeting">Welcome back, {user.username}!</p>
-                  <p className="user-hero-sub">
-                    Your watchlist is waiting. Ask the AI for what's next.
+                  {/* Straight, upright Frieren poster container (tilt removed) */}
+                  <div
+                    className="hero-poster-wrap"
+                    style={{
+                      transform: `translateY(calc(-50% + calc(var(--scroll-y, 0) * 0.4px))) scale(max(0.8, calc(1 - (var(--scroll-y, 0) * 0.0003))))`,
+                      willChange: 'transform',
+                    }}
+                  >
+                    <img
+                      id="hero-poster"
+                      src={activeHero.image_url}
+                      alt={activeHero.title}
+                      className="hero-poster"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = `https://placehold.co/240x340/0b0d17/7c3aed?text=${encodeURIComponent(
+                          activeHero.title.slice(0, 12)
+                        )}`;
+                      }}
+                    />
+                    <div className="hero-poster-glow" />
+                  </div>
+                </section>
+              )}
+
+
+              {/* ── RECOMMENDATIONS TRACK SCROLLERS ── */}
+              <main className="main-content" id="anime-section">
+                {user && watchHistory.length > 0 && (
+                  <section className="row-section">
+                    <div className="row-header">
+                      <h2 className="row-title">Continue Watching for {user.username}</h2>
+                    </div>
+                    <div className="scroller-wrap">
+                      <button
+                        className="scroll-arrow left"
+                        onClick={(e) => handleScrollTrack(e, 'left')}
+                        aria-label="Slide Left"
+                      >
+                        <ChevronLeft size={20} strokeWidth={2.5} />
+                      </button>
+
+                      <div className="anime-track continue-watching-track">
+                        {watchHistory.map((anime, index) => {
+                          // Assume an average episode is ~24 mins (1440 seconds) to calculate %
+                          const progressPercent = Math.min(100, Math.max(0, (anime.progress_seconds / 1440) * 100));
+                          
+                          return (
+                            <div
+                              key={`history-${anime.mal_id}-${index}`}
+                              className="landscape-card"
+                              onClick={() => handleOpenDetailModal(anime)}
+                            >
+                              <img
+                                src={anime.image_url}
+                                alt={anime.title}
+                                className="landscape-card-img"
+                                loading="lazy"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = `https://placehold.co/280x157/0b0d17/8B5CF6?text=${encodeURIComponent(
+                                    anime.title.slice(0, 12)
+                                  )}`;
+                                }}
+                              />
+                              <div className="landscape-card-overlay">
+                                <h3 className="landscape-card-title">{anime.title}</h3>
+                                <div className="landscape-card-ep">
+                                  S1:E{anime.episode_number}
+                                </div>
+                              </div>
+                              <div className="progress-bar-bg">
+                                <div 
+                                  className="progress-bar-fill" 
+                                  style={{ width: `${progressPercent}%` }} 
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        className="scroll-arrow right"
+                        onClick={(e) => handleScrollTrack(e, 'right')}
+                        aria-label="Slide Right"
+                      >
+                        <ChevronRight size={20} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  </section>
+                )}
+                {cosmicRows.map((row, rowIdx) => (
+                  <section className="row-section" key={rowIdx}>
+                    <div className="row-header">
+                      <h2 className="row-title">{row.title}</h2>
+                      <a href="#" className="row-see-all" onClick={(e) => e.preventDefault()}>
+                        See all →
+                      </a>
+                    </div>
+                    <div className="scroller-wrap">
+                      <button
+                        className="scroll-arrow left"
+                        onClick={(e) => handleScrollTrack(e, 'left')}
+                        aria-label="Slide Left"
+                      >
+                        <ChevronLeft size={20} strokeWidth={2.5} />
+                      </button>
+
+                      <div className="anime-track">
+                        {loading
+                          ? Array(6)
+                              .fill(0)
+                              .map((_, idx) => <div key={idx} className="skeleton-card" />)
+                          : row.data.map((anime) => (
+                              <div
+                                key={`${rowIdx}-${anime.id || anime.mal_id}`}
+                                className="anime-card"
+                                onClick={() => handleOpenDetailModal(anime)}
+                                onMouseMove={handleCardMouseMove}
+                                onMouseEnter={handleCardMouseEnter}
+                                onMouseLeave={handleCardMouseLeave}
+                              >
+                                <div className="card-shine" />
+                                <img
+                                  src={anime.image_url}
+                                  alt={anime.title}
+                                  className="card-img"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = `https://placehold.co/185x275/0b0d17/8B5CF6?text=${encodeURIComponent(
+                                      anime.title.slice(0, 12)
+                                    )}`;
+                                  }}
+                                />
+                                <div className="card-overlay">
+                                  <h3 className="card-title">{anime.title}</h3>
+                                  <div className="card-bottom">
+                                    <span className="card-score">⭐ {Number(anime.score).toFixed(1)}</span>
+                                    <span className="card-genre">
+                                      {anime.genres ? anime.genres.split(',')[0].trim() : ''}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                      </div>
+
+                      <button
+                        className="scroll-arrow right"
+                        onClick={(e) => handleScrollTrack(e, 'right')}
+                        aria-label="Slide Right"
+                      >
+                        <ChevronRight size={20} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  </section>
+                ))}
+              </main>
+            </motion.div>
+          ) : currentView === 'mylist' ? (
+            /* ── MY ANIME LIST PAGE ── */
+            <motion.div
+              key="mylist-view"
+              initial={{ opacity: 0, x: 35, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -35, scale: 0.98 }}
+              transition={{ duration: 0.45, ease: [0.34, 1.3, 0.64, 1] }}
+              className="mylist-container"
+            >
+              <div className="mylist-header">
+                <div className="mylist-header-left">
+                  <h1 className="mylist-title">My Anime List</h1>
+                  <p className="mylist-subtitle">
+                    {favoritesList.length > 0
+                      ? `${favoritesList.length} anime in your collection`
+                      : 'Your personal anime collection lives here'}
                   </p>
                 </div>
+                <div className="mylist-header-badge">
+                  <span className="mylist-count-badge">{favoritesList.length}</span>
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* ── RECOMMENDATIONS TRACK SCROLLER ── */}
-          <main className="main-content" id="anime-section">
-            <section className="row-section">
-              <div className="row-header">
-                <h2 className="row-title">Trending Recommendations</h2>
-                <a href="#" className="row-see-all" onClick={(e) => e.preventDefault()}>
-                  See all →
-                </a>
-              </div>
-              <div className="scroller-wrap">
-                <button
-                  className="scroll-arrow left"
-                  onClick={() => handleScrollTrack('left')}
-                  aria-label="Slide Left"
-                >
-                  <ChevronLeft size={20} strokeWidth={2.5} />
-                </button>
-
-                <div className="anime-track" ref={trackRef}>
-                  {loading
-                    ? Array(6)
-                        .fill(0)
-                        .map((_, idx) => <div key={idx} className="skeleton-card" />)
-                    : animeList.map((anime) => (
-                        <div
-                          key={anime.id || anime.mal_id}
-                          className="anime-card"
-                          onClick={() => handleOpenDetailModal(anime)}
-                        >
-                          <img
-                            src={anime.image_url}
-                            alt={anime.title}
-                            className="card-img"
-                            loading="lazy"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = `https://placehold.co/185x275/0b0d17/7c3aed?text=${encodeURIComponent(
-                                anime.title.slice(0, 12)
-                              )}`;
-                            }}
-                          />
-                          <div className="card-overlay">
-                            <h3 className="card-title">{anime.title}</h3>
-                            <div className="card-bottom">
-                              <span className="card-score">⭐ {anime.score}</span>
-                              <span className="card-genre">
-                                {anime.genres.split(',')[0].trim()}
-                              </span>
-                            </div>
-                          </div>
+              {favoritesList.length === 0 ? (
+                <div className="mylist-empty">
+                  <div className="mylist-empty-icon">🌌</div>
+                  <h2 className="mylist-empty-title">Your list is empty</h2>
+                  <p className="mylist-empty-text">
+                    Start adding anime to your list by clicking the <strong>+ Add to List</strong> button on any anime.
+                  </p>
+                  <button
+                    className="btn-primary"
+                    style={{ marginTop: '24px' }}
+                    onClick={() => { setCurrentView('explorer'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                  >
+                    Browse Anime
+                  </button>
+                </div>
+              ) : (
+                <div className="mylist-grid">
+                  {favoritesList.map((anime) => (
+                    <div
+                      key={anime.mal_id || anime.id}
+                      className="anime-card mylist-card"
+                      onClick={() => handleOpenDetailModal(anime)}
+                      onMouseMove={handleCardMouseMove}
+                      onMouseEnter={handleCardMouseEnter}
+                      onMouseLeave={handleCardMouseLeave}
+                    >
+                      <div className="card-shine" />
+                      <img
+                        src={anime.image_url}
+                        alt={anime.title}
+                        className="card-img"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = `https://placehold.co/185x275/0b0d17/8B5CF6?text=${encodeURIComponent(
+                            anime.title.slice(0, 12)
+                          )}`;
+                        }}
+                      />
+                      <div className="card-overlay">
+                        <h3 className="card-title">{anime.title}</h3>
+                        <div className="card-bottom">
+                          <span className="card-score">⭐ {Number(anime.score).toFixed(1)}</span>
+                          <span className="card-genre">
+                            {anime.genres ? anime.genres.split(',')[0].trim() : ''}
+                          </span>
                         </div>
-                      ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            /* ── DEDICATED ANIME EXPLORER PAGE ── */
+            <motion.div
+              key="explorer-view"
+              initial={{ opacity: 0, x: 35, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: -35, scale: 0.98 }}
+              transition={{ duration: 0.45, ease: [0.34, 1.3, 0.64, 1] }}
+              className="explorer-container"
+            >
+              <div className="explorer-header">
+                <h1 className="explorer-title">Nebula Anime Explorer</h1>
+                <p className="explorer-subtitle">
+                  Browse, search, and discover the complete anime catalogue in our database.
+                  Use filters to find recommendations tailored for your next watch.
+                </p>
+              </div>
+
+              <div className="explorer-filters">
+                <div className="explorer-search-wrapper">
+                  <input
+                    type="text"
+                    className="explorer-search-input"
+                    placeholder="Search anime by title..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  <Search className="explorer-search-icon" size={20} />
                 </div>
 
-                <button
-                  className="scroll-arrow right"
-                  onClick={() => handleScrollTrack('right')}
-                  aria-label="Slide Right"
-                >
-                  <ChevronRight size={20} strokeWidth={2.5} />
-                </button>
+                <div className="explorer-genres-section">
+                  <h3 className="explorer-genres-label">Filter by Genre</h3>
+                  <div className="explorer-genres-list">
+                    {allGenres.map((genre) => (
+                      <button
+                        key={genre}
+                        className={`genre-chip ${selectedGenre === genre ? 'active' : ''}`}
+                        onClick={() => setSelectedGenre(genre)}
+                      >
+                        {genre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </section>
-          </main>
-        </>
+
+              <div className="explorer-grid">
+                {filteredAnime.length > 0 ? (
+                  filteredAnime.map((anime) => (
+                    <div
+                      key={anime.id || anime.mal_id}
+                      className="anime-card"
+                      onClick={() => handleOpenDetailModal(anime)}
+                      onMouseMove={handleCardMouseMove}
+                      onMouseEnter={handleCardMouseEnter}
+                      onMouseLeave={handleCardMouseLeave}
+                    >
+                      <div className="card-shine" />
+                      <img
+                        src={anime.image_url}
+                        alt={anime.title}
+                        className="card-img"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = `https://placehold.co/185x275/0b0d17/7c3aed?text=${encodeURIComponent(
+                            anime.title.slice(0, 12)
+                          )}`;
+                        }}
+                      />
+                      <div className="card-overlay">
+                        <h3 className="card-title">{anime.title}</h3>
+                        <div className="card-bottom">
+                          <span className="card-score">⭐ {Number(anime.score).toFixed(1)}</span>
+                          <span className="card-genre">
+                            {anime.genres.split(',')[0].trim()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="no-results-card">
+                    <div className="no-results-icon">
+                      <SearchX size={32} />
+                    </div>
+                    <h2 className="no-results-title">No Anime Found</h2>
+                    <p className="no-results-text">
+                      We couldn't find any anime matching "{searchQuery}" in category "{selectedGenre}".
+                      Try adjusting your keywords or selecting another filter.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       )}
 
       {/* ── FOOTER ── */}
       <footer className="site-footer">
         <div className="footer-inner">
           <div className="footer-logo">
-            <span className="logo-nebula">NEBULA</span>
-            <span className="logo-anime">ANIME</span>
+            <img src={logoImg} alt="Nebula Anime" className="footer-logo-img" />
           </div>
           <p className="footer-tagline">Made with AI &nbsp;·&nbsp; Charged with AI</p>
           <p className="footer-copy">© 2026 Nebula Anime. All rights reserved.</p>
@@ -684,12 +1432,30 @@ export default function App() {
       {/* ── ACTIVE MODAL INTERLACES ── */}
       <AnimeDetailModal
         isOpen={detailModalOpen}
-        onClose={() => setDetailModalOpen(false)}
+        onClose={() => {
+          setDetailModalOpen(false);
+          if (authToken) {
+            fetchWatchHistory(authToken);
+          }
+        }}
         anime={selectedModalAnime}
         user={user}
         authToken={authToken}
         backendBaseUrl={BACKEND_BASE_URL}
         onShowAuth={showAuthModal}
+        favoritesList={favoritesList}
+        userRatings={userRatings}
+        onFavoriteAdded={(favAnime) => {
+          setFavoritesCount((c) => c + 1);
+          setFavoritesList((prev) => {
+            const exists = prev.some(f => (f.mal_id || f.id) === (favAnime.mal_id || favAnime.id));
+            if (exists) return prev;
+            return [...prev, favAnime];
+          });
+        }}
+        onRatingChanged={(animeId, newRating) => {
+          setUserRatings((prev) => ({ ...prev, [animeId]: newRating }));
+        }}
       />
 
       <AuthOverlay

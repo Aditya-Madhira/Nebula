@@ -1,0 +1,1 @@
+{"status": 200, "body": {"reply": "Hey hey! I checked your account and it looks like you haven\u2019t rated any anime yet\u2014so I can\u2019t see any \u201clikes\u201d in your profile *just yet*. \ud83d\ude2d\u2728\n\nIf you want, tell me one anime you enjoyed (or a few), and I\u2019ll help you find similar ones!", "agent_name": "Nebulous"}}

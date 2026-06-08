@@ -153,6 +153,18 @@ export default function ChatWidget({
 
             {/* Messages Container */}
             <div className="chat-messages">
+              <div style={{
+                fontSize: '0.75rem',
+                color: 'rgba(255, 255, 255, 0.5)',
+                textAlign: 'center',
+                padding: '8px 12px',
+                marginBottom: '10px',
+                background: 'rgba(255, 100, 100, 0.1)',
+                borderRadius: '6px',
+                border: '1px solid rgba(255, 100, 100, 0.2)'
+              }}>
+                ⚠️ To save tokens, conversation history will be deleted if you close the window or log out.
+              </div>
               {chatHistory.map((msg, index) => {
                 const timeStr = msg.timestamp.toLocaleTimeString([], {
                   hour: '2-digit',
@@ -173,7 +185,14 @@ export default function ChatWidget({
                         __html: formatMarkdown(msg.message),
                       }}
                     />
-                    <span className="chat-msg-timestamp">{timeStr}</span>
+                    <div className="chat-msg-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                      <span className="chat-msg-timestamp" style={{ marginBottom: 0 }}>{timeStr}</span>
+                      {isAI && msg.metrics && (
+                        <span className="chat-msg-metrics" style={{ fontSize: '9px', color: 'var(--cyan)', opacity: 0.8, letterSpacing: '0.3px', fontWeight: 600 }}>
+                          ⚡ Tokens: {msg.metrics.total_tokens || msg.metrics.totalTokens || '?'}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 );
               })}

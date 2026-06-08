@@ -13,7 +13,7 @@ __pycache__/
 .mypy_cache/
 
 # Local configuration & environment variables
-# .env is intentionally tracked in git for multi-machine dev convenience
+.env
 .env.local
 
 # Databases (we've migrated to Azure Blob!)

@@ -13,8 +13,8 @@ import jwt
 
 log = logging.getLogger(__name__)
 
-# Secret key — override via JWT_SECRET env var in production
-JWT_SECRET    = os.getenv("JWT_SECRET", "nebula-anime-super-secret-change-in-prod")
+# Secret key - override via JWT-SECRET or JWT_SECRET env var in production.
+JWT_SECRET    = os.getenv("JWT-SECRET") or os.getenv("JWT_SECRET", "nebula-anime-super-secret-change-in-prod")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_HOURS = 72  # tokens valid for 3 days
 

@@ -26,9 +26,11 @@ log = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Initialise shared resources on startup."""
     from db import init_db
+    from refresh_worker import start_worker, stop_worker
     init_db()
+    start_worker()
     yield
-    # (Add any cleanup here in the future)
+    stop_worker()
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
@@ -52,15 +54,21 @@ app.add_middleware(
 
 # ── Routers ───────────────────────────────────────────────────────────────────
 
-from routes.anime import router as anime_router  # noqa: E402
-from routes.chat  import router as chat_router   # noqa: E402
-from routes.auth  import router as auth_router   # noqa: E402
+from routes.anime   import router as anime_router   # noqa: E402
+from routes.chat    import router as chat_router    # noqa: E402
+from routes.auth    import router as auth_router    # noqa: E402
+from routes.stream  import router as stream_router  # noqa: E402
 
 app.include_router(anime_router)
 app.include_router(chat_router)
 app.include_router(auth_router)
+app.include_router(stream_router)
 
-
+# Serve static frontend files in production
+from fastapi.staticfiles import StaticFiles
+frontend_dist = os.path.join(os.path.dirname(__file__), "dist")
+if os.path.exists(frontend_dist):
+    app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
 
 # ── Dev server entrypoint ─────────────────────────────────────────────────────
 

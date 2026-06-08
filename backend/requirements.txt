@@ -2,6 +2,7 @@
 agno==1.4.4
 openai==1.82.0
 ollama==0.4.8
+mcp
 
 # Backend Web Server
 fastapi==0.115.12
@@ -10,7 +11,15 @@ pydantic==2.11.4
 python-dotenv==1.1.0
 
 # HTTP Clients & Database Utilities
-requests==2.32.3
+requests>=2.32.5
+httpx==0.27.2
+sqlalchemy>=2.0.0
+pymssql>=2.3.0
+aiohttp>=3.9.0
+azure-ai-inference>=1.0.0b9
+
+# Anime Streaming Scraper
+anipy-api==3.8.12
 
 # Auth
 bcrypt==4.1.3
