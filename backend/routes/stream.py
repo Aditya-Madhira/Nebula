@@ -5,7 +5,7 @@ Dynamic streaming endpoint + HLS CORS proxy.
 
 Flow:
   1. GET /api/stream/{mal_id}/{episode_number}
-     - Resolves the live .m3u8 URL via anipy-api (AllAnime provider)
+     - Resolves the live .m3u8 URL via anipy-api (animehub provider)
      - Returns { proxy_url } pointing to our own proxy endpoint
 
   2. GET /api/stream/proxy/playlist/{mal_id}/{episode_number}
@@ -49,44 +49,33 @@ def _resolve_stream(title: str, episode_number: int) -> dict:
     except ImportError:
         raise RuntimeError("anipy-api is not installed. Run: pip install anipy-api")
 
-    provider = get_provider("allanime")
+    provider = get_provider("animehub")
 
-    # 1. Search with title overrides and exact matching to bypass AllAnime naming anomalies
-    search_query = title
-    exact_match_name = None
+    def _norm(t: str) -> str:
+        return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
 
-    # Known catalog titles that map to different queries or exact names on AllAnime
-    title_mapping = {
-        "Frieren: Beyond Journey's End": ("Sousou no Frieren", "Sousou no Frieren"),
-        "Monster": ("Monster", "Monster (2004)"),
-        "One Piece": ("One Piece", "1P"),
-        "Bleach": ("Bleach", "Burichi -"),
-        "Neon Genesis Evangelion": ("Shinseiki Evangelion", "Shinseiki Evangelion"),
-        "Code Geass: Lelouch of the Rebellion": ("Code Geass", "Code Geass: Hangyaku no Lelouch"),
-        "Code Geass: Lelouch of the Rebellion R2": ("Code Geass", "Code Geass: Hangyaku no Lelouch R2"),
-        "Tokyo Ghoul": ("Tokyo Ghoul", "Tokyo Ghoul"),
-        "Dragon Ball Z": ("DBZ", "DBZ"),
-        "Naruto: Shippuden": ("Naruto: Shippuden", "Nato: Shippuuden"),
-        "Hunter x Hunter (2011)": ("Hunter X Hunter", "Hunter X Hunter"),
-        "Attack on Titan": ("Shingeki no Kyojin", "Shingeki no Kyojin"),
-        "Your Name.": ("Kimi no Na wa.", "Kimi no Na wa."),
-        "Spirited Away": ("Sen to Chihiro o Kamikakushi", "Sen to Chihiro o Kamikakushi"),
-    }
+    # 1. Search: try the title as-is, then simpler variants (no brackets or
+    #    trailing marks, text before ':'), since catalogue titles are romaji.
+    queries = [title]
+    for q in (
+        re.sub(r"\s*[(\[].*?[)\]]", "", title),
+        re.sub(r"[^\w\s:'.-]", "", title),
+        title.split(":")[0],
+    ):
+        q = q.strip()
+        if q and q not in queries:
+            queries.append(q)
 
-    if title in title_mapping:
-        search_query, exact_match_name = title_mapping[title]
-
-    results = provider.get_search(search_query)
-    if not results:
-        raise ValueError(f"No results found on AllAnime for: '{search_query}'")
-
-    # Pick exact match if configured, otherwise take first result
-    best = results[0]
-    if exact_match_name:
-        for res in results:
-            if res.name.strip().lower() == exact_match_name.strip().lower():
-                best = res
-                break
+    best = None
+    for search_query in queries:
+        results = provider.get_search(search_query)
+        if not results:
+            continue
+        best = next((r for r in results if _norm(r.name) == _norm(title)), results[0])
+        break
+    if best is None:
+        raise ValueError(f"No results found on the stream provider for: '{title}'")
+    search_query = queries[0]
 
     log.info("Stream resolver: '%s' (Search: '%s') → matched name: '%s' (ID: %s)", 
              title, search_query, best.name, best.identifier)
@@ -148,7 +137,7 @@ def _upstream_headers(referer: str = "") -> dict:
 # Route 1: Resolve stream → return proxy URL to frontend
 # ---------------------------------------------------------------------------
 
-@router.get("/api/stream/{mal_id}/{episode_number}")
+@router.get("/api/stream/{mal_id:int}/{episode_number:int}")
 async def get_stream(mal_id: int, episode_number: int, request: Request):
     """
     Resolves the stream for an episode and returns a proxy_url the frontend
@@ -300,8 +289,6 @@ async def proxy_playlist(mal_id: int, episode_number: int, request: Request):
             log.error("Direct proxy error: %s", e)
             raise HTTPException(status_code=502, detail="Direct proxy error.")
 
-    # Base URL of the upstream m3u8 (for resolving relative segment paths)
-    base_upstream = m3u8_url.rsplit("/", 1)[0] + "/"
     base_url = str(request.base_url).rstrip("/")
     proxy_seg = f"{base_url}/api/stream/proxy/segment"
 
@@ -335,11 +322,9 @@ async def proxy_playlist(mal_id: int, episode_number: int, request: Request):
     # Rewrite every URI= and bare .ts / .m4s / .m3u8 line to our proxy
     def rewrite_url(original_url: str) -> str:
         """Absolutise relative URL, then wrap in our proxy."""
-        if original_url.startswith("http"):
-            full = original_url
-        else:
-            full = base_upstream + original_url.lstrip("/")
         import urllib.parse
+        # urljoin handles absolute, root-relative ("/cdn/x") and relative URLs
+        full = urllib.parse.urljoin(m3u8_url, original_url)
         encoded = urllib.parse.quote(full, safe="")
         ref_enc = urllib.parse.quote(referer, safe="")
         return f"{proxy_seg}?url={encoded}&referer={ref_enc}"

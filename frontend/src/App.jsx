@@ -356,37 +356,41 @@ export default function App() {
   // Enrich items with Jikan API images to bypass MAL CDN hotlinking blocking
   const enrichImagesFromJikan = async (data) => {
     const imageCache = getJikanImageCache();
+    const result = data.map((anime) =>
+      imageCache[anime.mal_id] ? { ...anime, image_url: imageCache[anime.mal_id] } : anime
+    );
 
-    const updated = await Promise.allSettled(
-      data.map(async (anime) => {
-        // Return instantly if cached
-        if (imageCache[anime.mal_id]) {
-          return { ...anime, image_url: imageCache[anime.mal_id] };
-        }
-
-        // Fetch Jikan API if not in cache
+    // Look up uncached images a few at a time with a timeout, so a slow or
+    // unreachable Jikan API never blocks the UI (and avoids 429 rate limits).
+    const pending = result.map((a, i) => i).filter((i) => !imageCache[result[i].mal_id]);
+    const worker = async () => {
+      while (pending.length) {
+        const i = pending.shift();
+        const anime = result[i];
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 4000);
         try {
-          const res = await fetch(`https://api.jikan.moe/v4/anime/${anime.mal_id}`);
-          if (!res.ok) return anime;
-          const json = await res.json();
-          const imgUrl =
-            json?.data?.images?.jpg?.large_image_url ||
-            json?.data?.images?.jpg?.image_url;
-
-          if (imgUrl) {
-            saveJikanImageCache(anime.mal_id, imgUrl);
-            return { ...anime, image_url: imgUrl };
+          const res = await fetch(`https://api.jikan.moe/v4/anime/${anime.mal_id}`, { signal: controller.signal });
+          if (res.ok) {
+            const json = await res.json();
+            const imgUrl =
+              json?.data?.images?.jpg?.large_image_url ||
+              json?.data?.images?.jpg?.image_url;
+            if (imgUrl) {
+              saveJikanImageCache(anime.mal_id, imgUrl);
+              result[i] = { ...anime, image_url: imgUrl };
+            }
           }
-          return anime;
         } catch {
-          return anime;
+          // keep the original image_url
+        } finally {
+          clearTimeout(timer);
         }
-      })
-    );
-
-    return updated.map((result, idx) =>
-      result.status === 'fulfilled' ? result.value : data[idx]
-    );
+        await new Promise((r) => setTimeout(r, 350));
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    return result;
   };
 
   // 3. Fetch from FastAPI server
@@ -406,19 +410,25 @@ export default function App() {
       const data = await res.json();
       setApiStatus('online');
 
-      // Fetch images from Jikan (CORS-friendly mirror urls)
-      const enrichedData = await enrichImagesFromJikan(data);
-
-      setAnimeList(enrichedData);
-      setActiveHero(enrichedData[0]);
+      // Show the catalogue right away with the images we already have
+      setAnimeList(data);
+      setActiveHero(data[0]);
       setErrorVisible(false);
+      setLoading(false);
 
-      // Cache recommendations locally
-      try {
-        localStorage.setItem('nebula_recommendations_cache', JSON.stringify(enrichedData));
-      } catch (err) {
-        console.error('Recommendations cache save failed:', err);
-      }
+      // Upgrade images from Jikan in the background (non-blocking)
+      enrichImagesFromJikan(data).then((enrichedData) => {
+        setAnimeList((prev) => {
+          const byId = new Map(enrichedData.map((a) => [a.mal_id, a]));
+          return prev.map((a) => byId.get(a.mal_id) || a);
+        });
+        setActiveHero((prev) => (prev ? enrichedData.find((a) => a.mal_id === prev.mal_id) || prev : enrichedData[0]));
+        try {
+          localStorage.setItem('nebula_recommendations_cache', JSON.stringify(enrichedData));
+        } catch (err) {
+          console.error('Recommendations cache save failed:', err);
+        }
+      });
     } catch (err) {
       console.error('Fetch failed, searching for local fallback:', err);
       // If we have cached recommendations already, keep them and set status to online (or fallback cached mode)
@@ -442,10 +452,13 @@ export default function App() {
     setErrorVisible(false);
     setApiStatus('demo');
 
-    const enrichedMock = await enrichImagesFromJikan(MOCK_DATA);
-    setAnimeList(enrichedMock);
-    setActiveHero(enrichedMock[0]);
+    setAnimeList(MOCK_DATA);
+    setActiveHero(MOCK_DATA[0]);
     setLoading(false);
+    enrichImagesFromJikan(MOCK_DATA).then((enrichedMock) => {
+      setAnimeList(enrichedMock);
+      setActiveHero(enrichedMock[0]);
+    });
   };
 
   // 5. Auth Action Handler
@@ -472,8 +485,8 @@ export default function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        const enriched = await enrichImagesFromJikan(data);
-        setFavoritesList(enriched);
+        setFavoritesList(data);
+        enrichImagesFromJikan(data).then(setFavoritesList);
       }
     } catch {
       // silently ignore
@@ -499,8 +512,8 @@ export default function App() {
       });
       if (res.ok) {
         const data = await res.json();
-        const enriched = await enrichImagesFromJikan(data);
-        setWatchHistory(enriched);
+        setWatchHistory(data);
+        enrichImagesFromJikan(data).then(setWatchHistory);
       }
     } catch {
       // silently ignore
@@ -1454,7 +1467,9 @@ export default function App() {
           });
         }}
         onRatingChanged={(animeId, newRating) => {
-          setUserRatings((prev) => ({ ...prev, [animeId]: newRating }));
+          setUserRatings((prev) =>
+            (prev[animeId] ?? 0) === newRating ? prev : { ...prev, [animeId]: newRating }
+          );
         }}
       />
 

@@ -17,7 +17,7 @@ sqlalchemy>=2.0.0
 aiohttp>=3.9.0
 
 # Anime Streaming Scraper
-anipy-api==3.8.12
+anipy-api==3.10.1
 
 # Auth
 bcrypt==4.1.3
