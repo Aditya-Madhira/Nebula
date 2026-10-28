@@ -28,9 +28,12 @@ async def lifespan(app: FastAPI):
     from db import init_db
     from refresh_worker import start_worker, stop_worker
     init_db()
-    start_worker()
+    refresh_enabled = os.getenv("REFRESH_WORKER_ENABLED", "1") != "0"
+    if refresh_enabled:
+        start_worker()
     yield
-    stop_worker()
+    if refresh_enabled:
+        stop_worker()
 
 
 # ── App ───────────────────────────────────────────────────────────────────────

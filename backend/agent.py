@@ -18,6 +18,7 @@ Architecture:
 """
 
 import os
+import json
 import logging
 from agno.agent import Agent
 from agno.models.ollama import Ollama
@@ -55,10 +56,40 @@ OLLAMA_MODELS = [
 ]
 
 
+class NebulaOllama(Ollama):
+    """
+    agno 1.4.4's Ollama class drops `tool_calls` from assistant messages and
+    `tool_name` from tool results. The model then never sees that it already
+    called a tool and repeats the same call forever. Send them properly.
+    """
+
+    def _format_message(self, message):
+        formatted = super()._format_message(message)
+        if message.role == "assistant" and message.tool_calls:
+            calls = []
+            for tc in message.tool_calls:
+                fn = tc.get("function", {})
+                args = fn.get("arguments", {})
+                if isinstance(args, str):
+                    try:
+                        args = json.loads(args or "{}")
+                    except ValueError:
+                        args = {}
+                calls.append({"function": {"name": fn.get("name"), "arguments": args}})
+            formatted["tool_calls"] = calls
+            formatted["content"] = formatted.get("content") or ""
+        elif message.role == "tool":
+            if getattr(message, "tool_name", None):
+                formatted["tool_name"] = message.tool_name
+            if not isinstance(formatted.get("content"), str):
+                formatted["content"] = json.dumps(formatted.get("content"), default=str)
+        return formatted
+
+
 def _make_ollama(model_id: str) -> Ollama:
     api_key = _env("OLLAMA_API_KEY")
     headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
-    return Ollama(
+    return NebulaOllama(
         id=model_id,
         host=OLLAMA_HOST,
         client_params={"headers": headers} if headers else None,
@@ -220,11 +251,11 @@ def build_agent(user_id: str) -> Agent:
         tools=[*_make_user_tools(user_id), sql_tools],
         add_history_to_messages=True,
         num_history_runs=3,
-        enable_session_summaries=True,
+        enable_session_summaries=False,
         read_chat_history=True,
         markdown=True,
         show_tool_calls=True,
-        reasoning=True,
+        reasoning=False,
     )
 
     return agent

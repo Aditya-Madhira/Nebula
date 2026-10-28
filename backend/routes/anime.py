@@ -95,7 +95,11 @@ async def add_history(payload: HistoryRequest, user=Depends(get_current_user)):
     conn = get_db_connection()
     try:
         conn.execute(
-            "INSERT INTO watch_history (user_id, anime_id, anime_title) VALUES (?, ?, ?)",
+            """
+            INSERT INTO watch_history (user_id, anime_id, anime_title) VALUES (?, ?, ?)
+            ON CONFLICT(user_id, anime_id, episode_number) DO UPDATE SET
+                watched_at = CURRENT_TIMESTAMP
+            """,
             (user["sub"], payload.anime_id, payload.anime_title),
         )
         conn.commit()
@@ -151,6 +155,99 @@ async def rate_anime(payload: RatingRequest, user=Depends(get_current_user)):
     except Exception as e:
         log.error("Failed to update rating: %s", e)
         raise HTTPException(status_code=500, detail="Failed to update rating.")
+    finally:
+        conn.close()
+
+
+@router.get("/api/anime/favorites/count")
+async def favorites_count(user=Depends(get_current_user)):
+    """Number of anime in the user's favorites list."""
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(*) AS count FROM favorites WHERE user_id = ?", (user["sub"],)
+        ).fetchone()
+        return {"count": row["count"]}
+    finally:
+        conn.close()
+
+
+@router.get("/api/anime/favorites/list")
+async def favorites_list(user=Depends(get_current_user)):
+    """The user's favorite anime (full catalogue rows), newest first."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT a.mal_id, a.title, a.genres, a.score, a.episodes,
+                   a.synopsis, a.image_url, a.anime_type
+            FROM favorites f JOIN anime a ON a.mal_id = f.anime_id
+            WHERE f.user_id = ?
+            ORDER BY f.created_at DESC, f.id DESC
+            """,
+            (user["sub"],),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+@router.get("/api/anime/history")
+async def watch_history(user=Depends(get_current_user)):
+    """The user's recently watched anime (one row per anime), newest first."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT a.mal_id, a.title, a.genres, a.score, a.episodes,
+                   a.synopsis, a.image_url, a.anime_type
+            FROM (
+                SELECT anime_id, MAX(watched_at) AS last_watched
+                FROM watch_history WHERE user_id = ? GROUP BY anime_id
+            ) h JOIN anime a ON a.mal_id = h.anime_id
+            ORDER BY h.last_watched DESC
+            LIMIT 30
+            """,
+            (user["sub"],),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+@router.get("/api/anime/search")
+async def search_anime(q: str = ""):
+    """Search the local catalogue by title."""
+    q = q.strip()
+    if not q:
+        return []
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT mal_id, title, genres, score, episodes, synopsis, image_url, anime_type
+            FROM anime WHERE title LIKE ? ORDER BY score DESC LIMIT 20
+            """,
+            (f"%{q}%",),
+        ).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+@router.get("/api/anime/{anime_id}/episodes")
+async def get_episodes(anime_id: int):
+    """Cached episode list for an anime (may be empty; the UI falls back to a numbered list)."""
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT episode_number, title, is_filler FROM anime_episodes
+            WHERE mal_id = ? ORDER BY episode_number
+            """,
+            (anime_id,),
+        ).fetchall()
+        return {"episodes": [{**dict(r), "is_filler": bool(r["is_filler"])} for r in rows]}
     finally:
         conn.close()
 
