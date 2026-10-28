@@ -2,7 +2,7 @@
 expand_anime_db.py
 ------------------
 Fetches a broader set of popular anime from Jikan API and upserts them
-into Azure SQL. Targets:
+into SQLite. Targets:
   - Top 300 anime by score (pages 1-12, 25 per page)
   - Seasonal popular anime (last 4 seasons)
   - Explicitly curated mal_ids for well-known titles missing from top lists
@@ -137,17 +137,17 @@ def fetch_with_retry(url: str, retries: int = 3):
 
 
 def upsert_anime(conn, entry: dict):
-    """Insert or update a single anime row in Azure SQL."""
+    """Insert or update a single anime row in SQLite."""
     try:
         existing = conn.execute(
-            "SELECT mal_id FROM anime WHERE mal_id = %s", (entry["mal_id"],)
+            "SELECT mal_id FROM anime WHERE mal_id = ?", (entry["mal_id"],)
         ).fetchone()
         if existing:
             conn.execute(
                 """
                 UPDATE anime
-                SET title = %s, genres = %s, score = %s, episodes = %s, synopsis = %s, image_url = %s, anime_type = %s
-                WHERE mal_id = %s
+                SET title = ?, genres = ?, score = ?, episodes = ?, synopsis = ?, image_url = ?, anime_type = ?
+                WHERE mal_id = ?
                 """,
                 (entry["title"], entry["genres"], entry["score"],
                  entry["episodes"], entry["synopsis"], entry["image_url"],
@@ -157,7 +157,7 @@ def upsert_anime(conn, entry: dict):
             conn.execute(
                 """
                 INSERT INTO anime (mal_id, title, genres, score, episodes, synopsis, image_url, anime_type)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (entry["mal_id"], entry["title"], entry["genres"],
                  entry["score"], entry["episodes"],
@@ -199,7 +199,7 @@ def main():
     from db import get_db_connection
 
     conn = get_db_connection()
-    log.info("Connected to Azure SQL.")
+    log.info("Connected to SQLite.")
 
     added = 0
     updated = 0

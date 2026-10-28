@@ -7,7 +7,7 @@ Chat endpoint — proxies requests to the Nebula Anime Agent.
 import logging
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from agent import get_anime_agent, clear_agent_session
+from agent import get_anime_agent, clear_agent_session, llm_configured
 from routes.auth import get_current_user
 from guardrails import validate_user_query
 
@@ -32,6 +32,12 @@ async def chat(payload: ChatRequest, user=Depends(get_current_user)):
     if not is_valid:
         return {
             "reply":      rejection_message,
+            "agent_name": "Nebulous",
+        }
+
+    if not llm_configured():
+        return {
+            "reply":      "The AI assistant isn't configured yet — no LLM is connected.",
             "agent_name": "Nebulous",
         }
 

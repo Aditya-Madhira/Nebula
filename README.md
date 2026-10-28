@@ -1,39 +1,21 @@
 # 🌌 Nebula Anime
 
-Nebula Anime is a high-fidelity, cinematic web application for anime curation and discovery powered by Azure OpenAI and Azure SQL Database. The platform offers desktop-optimized immersive visual effects, 3D card physics, clean UI transitions, and an intelligent Otaku Assistant chatbot.
+Nebula Anime is a high-fidelity, cinematic web application for anime curation and discovery backed by a local SQLite database. The platform offers desktop-optimized immersive visual effects, 3D card physics, clean UI transitions, and an intelligent Otaku Assistant chatbot.
 
 ---
 
 ## 🚀 Key Features
 - **Cinematic Experience**: Immersive splash screen, dynamic starfields, orbital planetary scroll parallax, and interactive 3D perspective card tilt effects.
 - **Desktop Only**: Intentionally optimized and protected for desktop monitors (`>= 1024px`) with a premium custom blocker overlay on mobile browsers.
-- **Otaku AI Companion**: Powered by Azure OpenAI to support database-connected natural queries, reasoning, and anime recommendations.
+- **Otaku AI Companion**: Chatbot (Ollama cloud LLM) to support database-connected natural queries, reasoning, and anime recommendations.
 - **High-Performance Audio**: Procedural interface sound effects (Celesta chimes, synth warp rising tones, ticks) to enhance user interaction.
 - **Optimistic UI Updates**: Instantly handles user actions (Like, Dislike, Add to Favorites List) locally and synchronizes state seamlessly with backend services.
 
 ---
 
-## 🛠️ Azure Dependencies & Infrastructure Setup
+## 🗄️ Database
 
-To run Nebula Anime in a cloud/production environment, the following Azure resources are required:
-
-### 1. Azure SQL Database
-- **Role**: Main relational data store.
-- **Configuration**:
-  - A database server containing the `anime` and related tables (users, watch history, favorites, episodes).
-  - Credentials must match the `AZURE_DB_USER` and `DB_PASSWORD` set in the environment variables.
-  - The firewall rules must allow connections from your deployment server (or container runtime).
-
-### 2. Azure OpenAI Service
-- **Role**: Hosts the LLM behind our Otaku Assistant.
-- **Configuration**:
-  - API endpoint (`AZURE_OPENAI_ENDPOINT`) and key (`AZURE_OPENAI_API_KEY`).
-  - Deployment name (`AZURE_OPENAI_DEPLOYMENT`) mapped to the model (e.g., `gpt-4` or equivalent).
-
-### 3. Azure Container Registry (ACR)
-- **Role**: Securely hosts the container images of the application.
-- **Configuration**:
-  - Docker images are tagged and pushed using the registry name `imagecontainerfornebula.azurecr.io`.
+Nebula uses a local SQLite file (`backend/nebula.db`, override with `NEBULA_DB_PATH`). Tables are created and the anime catalogue is seeded from `backend/anime.json` automatically on first start. The chatbot uses Ollama cloud via Agno (see `OLLAMA_*` in `.env.example`).
 
 ---
 
@@ -45,15 +27,8 @@ Create a `.env` file in the root directory based on the `.env.example` file:
 # Frontend origin for CORS policy
 FRONTEND_ORIGIN=http://localhost:3000
 
-# Azure OpenAI Credentials
-AZURE_OPENAI_API_KEY=your_key_here
-AZURE_OPENAI_ENDPOINT=https://your-resource.cognitiveservices.azure.com/
-AZURE_OPENAI_API_VERSION=2024-12-01-preview
-AZURE_OPENAI_DEPLOYMENT=gpt-5.4-nano
-
-# Azure SQL Database Credentials
-AZURE_DB_USER=your_db_username
-DB_PASSWORD=your_db_password
+# Optional: SQLite file location
+# NEBULA_DB_PATH=/path/to/nebula.db
 ```
 
 ---

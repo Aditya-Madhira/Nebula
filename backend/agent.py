@@ -20,7 +20,7 @@ Architecture:
 import os
 import logging
 from agno.agent import Agent
-from agno.models.azure.openai_chat import AzureOpenAI
+from agno.models.ollama import Ollama
 from agno.tools import tool
 from agno.tools.sql import SQLTools
 from db import get_db_connection, DB_PATH
@@ -30,7 +30,7 @@ log = logging.getLogger(__name__)
 # Per-user agent cache
 _agent_cache: dict[str, Agent] = {}
 
-# SQLAlchemy URL for SQLTools (Azure SQL Database)
+# SQLAlchemy URL for SQLTools (local SQLite database)
 _DB_URL = DB_PATH
 
 
@@ -44,6 +44,51 @@ def _env(name: str, fallback: str | None = None) -> str | None:
     if value:
         return value.strip()
     return fallback
+
+
+OLLAMA_HOST = _env("OLLAMA_HOST", "https://ollama.com")
+# Tried in order; the first one that answers a probe request is used.
+OLLAMA_MODELS = [
+    m.strip()
+    for m in (_env("OLLAMA_MODELS", "gemma4:31b-cloud,muse-spark-open:cloud") or "").split(",")
+    if m.strip()
+]
+
+
+def _make_ollama(model_id: str) -> Ollama:
+    api_key = _env("OLLAMA_API_KEY")
+    headers = {"Authorization": f"Bearer {api_key}"} if api_key else None
+    return Ollama(
+        id=model_id,
+        host=OLLAMA_HOST,
+        client_params={"headers": headers} if headers else None,
+        timeout=120,
+    )
+
+
+def _build_llm() -> Ollama | None:
+    """
+    Return the first Ollama cloud model that responds, or None if none work.
+    Models come from OLLAMA_MODELS (comma-separated, in priority order).
+    """
+    if not _env("OLLAMA_API_KEY"):
+        log.warning("OLLAMA_API_KEY not set; LLM disabled.")
+        return None
+    for model_id in OLLAMA_MODELS:
+        try:
+            llm = _make_ollama(model_id)
+            llm.get_client().chat(
+                model=model_id, messages=[{"role": "user", "content": "ping"}]
+            )
+            log.info("Using Ollama model %s", model_id)
+            return llm
+        except Exception as e:
+            log.warning("Ollama model %s unavailable: %s", model_id, e)
+    return None
+
+
+def llm_configured() -> bool:
+    return bool(_env("OLLAMA_API_KEY"))
 
 
 def _make_user_tools(user_id: str) -> list:
@@ -97,13 +142,9 @@ def build_agent(user_id: str) -> Agent:
     """
     log.info("Building Nebula Agent for user_id=%s", user_id)
 
-    llm = AzureOpenAI(
-        id=_env("AZURE-OPENAI-DEPLOYMENT", "gpt-5.4-nano"),
-        api_key=_env("AZURE-OPENAI-API-KEY"),
-        azure_endpoint=_env("AZURE-OPENAI-ENDPOINT"),
-        api_version=_env("AZURE-OPENAI-API-VERSION", "2024-12-01-preview"),
-    )
-
+    llm = _build_llm()
+    if llm is None:
+        raise RuntimeError("No Ollama model is available (check OLLAMA_API_KEY / OLLAMA_MODELS).")
 
     # SQLTools gives the agent full read access to nebula.db:
     #   list_tables()             — discover all tables
@@ -154,7 +195,7 @@ def build_agent(user_id: str) -> Agent:
             "",
             f"The current user's ID is: {user_id}. Use this exact value in all SQL WHERE clauses.",
             "",
-            "You have access to an Azure SQL Database. Key tables:",
+            "You have access to a SQLite database. Key tables:",
             "  • users            — id, username, email",
             "  • user_ratings     — user_id, anime_id (=mal_id), rating (1=Like, -1=Dislike)",
             "  • watch_history    — user_id, anime_id, anime_title, episode_number, progress_seconds, watched_at",

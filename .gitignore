@@ -16,7 +16,7 @@ __pycache__/
 .env
 .env.local
 
-# Databases (we've migrated to Azure Blob!)
+# Databases
 backend/anime.db
 *.db
 *.sqlite3

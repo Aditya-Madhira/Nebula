@@ -2,7 +2,7 @@
 refresh_worker.py
 -----------------
 Background thread that periodically refreshes anime metadata and episode
-lists from the Jikan API into Azure SQL.
+lists from the Jikan API into SQLite.
 
 Interval: every 60 seconds (configurable via REFRESH_INTERVAL_SECONDS env var)
 Jikan rate limit: ~1 req/sec max — we throttle safely at 1.2s between calls.
@@ -125,8 +125,8 @@ def _run_refresh_cycle():
                 conn.execute(
                     """
                     UPDATE anime
-                    SET episodes = %s, score = %s, synopsis = %s, anime_type = %s
-                    WHERE mal_id = %s
+                    SET episodes = ?, score = ?, synopsis = ?, anime_type = ?
+                    WHERE mal_id = ?
                     """,
                     (fresh_episodes, fresh_score, fresh_synopsis, fresh_type, mal_id),
                 )
@@ -143,26 +143,11 @@ def _run_refresh_cycle():
                 try:
                     conn.execute(
                         """
-                        IF NOT EXISTS (
-                            SELECT 1 FROM anime_episodes
-                            WHERE mal_id = %s AND episode_number = %s
-                        )
-                        BEGIN
-                            INSERT INTO anime_episodes (mal_id, episode_number, title, is_filler)
-                            VALUES (%s, %s, %s, %s)
-                        END
-                        ELSE
-                        BEGIN
-                            UPDATE anime_episodes
-                            SET title = %s
-                            WHERE mal_id = %s AND episode_number = %s
-                        END
+                        INSERT INTO anime_episodes (mal_id, episode_number, title, is_filler)
+                        VALUES (?, ?, ?, ?)
+                        ON CONFLICT(mal_id, episode_number) DO UPDATE SET title = excluded.title
                         """,
-                        (
-                            mal_id, ep["episode_number"],
-                            mal_id, ep["episode_number"], ep["title"], int(ep["is_filler"]),
-                            ep["title"], mal_id, ep["episode_number"],
-                        ),
+                        (mal_id, ep["episode_number"], ep["title"], int(ep["is_filler"])),
                     )
                     conn.commit()
                     ep_upserted += 1

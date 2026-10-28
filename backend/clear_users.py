@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from db import get_db_connection
 
 def clear_user_data():
-    print("Connecting to Azure SQL Database to wipe user data...")
+    print("Connecting to SQLite database to wipe user data...")
     conn = get_db_connection()
     try:
         # Deleting from users will cascade to favorites, watch_history, user_ratings, user_preferences
